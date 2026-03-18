@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Jira Report Builder</title>
+<link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<style>
+    body {
+        font-family: Arial;
+        background: #f5f6fa;
+        margin: 0;
+    }
+
+    .container {
+        width: 1000px;
+        margin: 40px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+        margin-bottom: 20px;
+    }
+
+    label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 15px;
+    }
+
+    select[multiple] {
+        height: 150px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 20px;
+    }
+
+    .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 25px;
+        margin-top: 10px;
+        margin-bottom: 20px;
+    }
+
+    .grid-3 input {
+        width: 95%;
+    }
+
+    label {
+        margin-top: 10px;
+    }
+
+    select[multiple] {
+        height: 180px;
+    }
+
+    .full-width {
+        grid-column: span 2;
+    }
+
+    button {
+        padding: 10px 15px;
+        border: none;
+        background: #4CAF50;
+        color: white;
+        cursor: pointer;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
+
+    button:hover {
+        background: #45a049;
+    }
+
+    .report-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f1f2f6;
+        padding: 12px;
+        margin-bottom: 10px;
+        border-radius: 6px;
+    }
+
+    .actions button {
+        margin-left: 5px;
+        background: #3498db;
+    }
+
+    .actions button:hover {
+        background: #2980b9;
+    }
+
+    .preview-box {
+        background: #ecf0f1;
+        padding: 15px;
+        margin-top: 15px;
+        border-radius: 5px;
+        font-size: 14px;
+    }
+
+</style>
+
+
+</head>
+
+<body>
+
+<div class="container">
+
+
+<h2>Create Report</h2>
+
+<label>Report Name</label>
+<input type="text" id="name" placeholder="Enter report name">
+
+<div class="grid">
+    <div>
+        <label>Project</label>
+        <select id="projects" multiple></select>
+    </div>
+
+    <div>
+        <label>Status</label>
+        <select id="statuses" multiple></select>
+    </div>
+
+    <div class="full-width">
+        <label>Fields</label>
+        <select id="fields" multiple></select>
+    </div>
+</div>
+
+<div class="grid-3">
+    <div>
+        <label>Start Date</label>
+        <input type="date" id="start_date">
+    </div>
+
+    <div>
+        <label>End Date</label>
+        <input type="date" id="end_date">
+    </div>
+
+    <div>
+        <label>Last N Days</label>
+        <input type="number" id="range_days" placeholder="e.g. 3">
+    </div>
+</div>
+
+<button onclick="createReport()">Create Report</button>
+
+<hr>
+
+<h2>Reports</h2>
+
+<div id="reportList"></div>
+
+<div id="previewBox" class="preview-box" style="display:none;"></div>
+
+
+</div>
+
+<script>
+
+async function loadMetadata() {
+    const fields = await fetch("/jira/fields").then(r => r.json());
+    const projects = await fetch("/jira/projects").then(r => r.json());
+    const statuses = await fetch("/jira/statuses").then(r => r.json());
+
+    fields.forEach(f => {
+        let opt = document.createElement("option");
+        opt.value = f.id;
+        opt.text = f.name;
+        document.getElementById("fields").appendChild(opt);
+    });
+
+    projects.forEach(p => {
+        let opt = document.createElement("option");
+        opt.value = p.key;
+        opt.text = p.name;
+        document.getElementById("projects").appendChild(opt);
+    });
+
+    statuses.forEach(s => {
+        let opt = document.createElement("option");
+        opt.value = s.name;
+        opt.text = s.name;
+        document.getElementById("statuses").appendChild(opt);
+    });
+
+    return true;
+}
+
+function getSelectedValues(id) {
+    return Array.from(document.getElementById(id).selectedOptions)
+        .map(o => o.value);
+}
+
+async function createReport() {
+
+    const project = document.getElementById("projects").value;
+
+    if (getSelectedValues("projects").length === 0) {
+        alert("Please select at least one project");
+        return;
+    }
+
+    const data = {
+        name: document.getElementById("name").value,
+        project_keys: getSelectedValues("projects"),
+        fields: getSelectedValues("fields"),
+        statuses: getSelectedValues("statuses"),
+        start_date: document.getElementById("start_date").value || null,
+        end_date: document.getElementById("end_date").value || null,
+        range_days: document.getElementById("range_days").value || null
+    };
+
+    if (!data.name) {
+        alert("Please enter report name");
+        return;
+    }
+
+    if (data.fields.length === 0) {
+        alert("Please select at least one field");
+        return;
+    }
+
+    if (data.range_days) {
+        data.start_date = null;
+        data.end_date = null;
+    }
+
+    const res = await fetch("/reports/", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    });
+
+    if (!res.ok) {
+        alert("Failed to create report");
+        return;
+    }
+
+    alert("Report Created Successfully");
+
+    document.getElementById("name").value = "";
+    document.getElementById("range_days").value = "";
+    document.getElementById("start_date").value = "";
+    document.getElementById("end_date").value = "";
+
+    loadReports();
+}
+
+async function loadReports() {
+    const reports = await fetch("/reports/").then(r => r.json());
+
+    const list = document.getElementById("reportList");
+    list.innerHTML = "";
+
+    reports.forEach(r => {
+        const div = document.createElement("div");
+        div.className = "report-item";
+
+        div.innerHTML = `
+            <div><b>${r.name}</b></div>
+            <div class="actions">
+                <button onclick="preview(${r.id})">Preview</button>
+                <button onclick="download(${r.id})">Download</button>
+            </div>
+        `;
+
+        list.appendChild(div);
+    });
+}
+
+async function preview(id) {
+    const res = await fetch(`/reports/${id}/preview`, { method: "POST" });
+    const data = await res.json();
+
+    const box = document.getElementById("previewBox");
+    box.style.display = "block";
+
+    box.innerHTML = `
+        <b>JQL:</b><br>${data.jql}<br><br>
+        <b>Total Issues:</b> ${data.total_issues}
+    `;
+}
+
+function download(id) {
+    window.open(`/reports/${id}/download`, "_blank");
+}
+
+function initDropdowns() {
+
+    new TomSelect("#projects", {
+        plugins: ['remove_button'],
+        create: false,
+        maxItems: null,   // allows multi select
+        placeholder: "Select projects...",
+        persist: false
+    });
+
+    new TomSelect("#statuses", {
+        plugins: ['remove_button'],
+        create: false,
+        placeholder: "Select status..."
+    });
+
+    new TomSelect("#fields", {
+        plugins: ['remove_button'],
+        create: false,
+        maxOptions: 10000,
+        placeholder: "Search and select fields..."
+    });
+}
+
+async function initApp() {
+    await loadMetadata();
+    initDropdowns();
+    loadReports();
+}
+
+initApp();
+
+</script>
+
+</body>
+</html>

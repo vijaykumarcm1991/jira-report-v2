@@ -56,7 +56,7 @@ def run_report(report_id: int):
 
     return result
 
-@router.post("/{report_id}/download")
+@router.get("/{report_id}/download")
 def download_report(report_id: int):
     db = SessionLocal()
 
