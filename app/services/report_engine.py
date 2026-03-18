@@ -7,6 +7,8 @@ import pytz
 import os
 from datetime import datetime
 
+progress_store = {}
+
 DATETIME_FORMAT = os.getenv("DATETIME_FORMAT", "%Y-%m-%d %H:%M:%S")
 ADD_TZ = os.getenv("ADD_TIMEZONE_SUFFIX", "false").lower() == "true"
 
@@ -57,7 +59,7 @@ def build_jql(projects=None, statuses=None, custom_jql=None,
 
     return " AND ".join(jql_parts) if jql_parts else ""
 
-def fetch_issues(jql, fields):
+def fetch_issues(jql, fields, job_id=None):
     url = f"{JIRA_URL}/rest/api/2/search"
 
     start_at = 0
@@ -87,8 +89,21 @@ def fetch_issues(jql, fields):
         if not issues:
             break
 
+        total = data.get("total", 0)
+
         all_issues.extend(issues)
         start_at += max_results
+
+        # 🔥 Update progress
+        if job_id:
+            progress_store[job_id] = {
+                "fetched": len(all_issues),
+                "total": total
+            }
+
+        # Stop condition (important)
+        if start_at >= total:
+            break
 
     return all_issues
 
@@ -151,7 +166,7 @@ def generate_csv(issues, fields):
     return filename
 
 
-def generate_report(report_config):
+def generate_report(report_config, job_id=None):
 
     print("DEBUG CONFIG:", report_config)   # 👈 ADD HERE
 
@@ -168,7 +183,7 @@ def generate_report(report_config):
 
     fields = report_config.get("fields", [])
 
-    issues = fetch_issues(jql, fields)
+    issues = fetch_issues(jql, fields, job_id)
 
     file_path = generate_csv(issues, fields)
 

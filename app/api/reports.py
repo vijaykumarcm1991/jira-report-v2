@@ -1,9 +1,12 @@
+from app.models import report
 from fastapi import APIRouter
 from app.db.database import SessionLocal
 from app.models.report import ReportDefinition
 from app.services.report_engine import generate_report
 from fastapi.responses import FileResponse
 import os
+from app.services.report_engine import progress_store
+import uuid
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -57,7 +60,7 @@ def run_report(report_id: int):
     return result
 
 @router.get("/{report_id}/download")
-def download_report(report_id: int):
+def download_report(report_id: int, job_id: str = None):
     db = SessionLocal()
 
     report = db.query(ReportDefinition).filter(
@@ -67,6 +70,9 @@ def download_report(report_id: int):
     if not report:
         return {"error": "Report not found"}
 
+    if not job_id:
+        job_id = str(uuid.uuid4())
+
     result = generate_report({
         "project_keys": report.project_keys,
         "fields": report.fields,
@@ -75,7 +81,7 @@ def download_report(report_id: int):
         "start_date": report.start_date,
         "end_date": report.end_date,
         "range_days": report.range_days
-    })
+    }, job_id=job_id)
 
     file_path = result["file"]
 
@@ -152,3 +158,7 @@ def delete_report(report_id: int):
     db.commit()
 
     return {"message": "Report deleted successfully"}
+
+@router.get("/progress/{job_id}")
+def get_progress(job_id: str):
+    return progress_store.get(job_id, {"fetched": 0, "total": 0})
