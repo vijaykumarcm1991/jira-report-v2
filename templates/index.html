@@ -162,7 +162,7 @@
     </div>
 </div>
 
-<button onclick="createReport()">Create Report</button>
+<button id="submitBtn" onclick="createReport()">Create Report</button>
 
 <hr>
 
@@ -176,6 +176,8 @@
 </div>
 
 <script>
+
+let editingReportId = null;
 
 async function loadMetadata() {
     const fields = await fetch("/jira/fields").then(r => r.json());
@@ -213,8 +215,6 @@ function getSelectedValues(id) {
 
 async function createReport() {
 
-    const project = document.getElementById("projects").value;
-
     if (getSelectedValues("projects").length === 0) {
         alert("Please select at least one project");
         return;
@@ -245,8 +245,16 @@ async function createReport() {
         data.end_date = null;
     }
 
-    const res = await fetch("/reports/", {
-        method: "POST",
+    let url = "/reports/";
+    let method = "POST";
+
+    if (editingReportId) {
+        url = `/reports/${editingReportId}`;
+        method = "PUT";
+    }
+
+    const res = await fetch(url, {
+        method: method,
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(data)
     });
@@ -258,10 +266,19 @@ async function createReport() {
 
     alert("Report Created Successfully");
 
+    document.querySelector("#projects").tomselect.clear();
+    document.querySelector("#statuses").tomselect.clear();
+    document.querySelector("#fields").tomselect.clear();
+
     document.getElementById("name").value = "";
     document.getElementById("range_days").value = "";
     document.getElementById("start_date").value = "";
     document.getElementById("end_date").value = "";
+
+    editingReportId = null;
+
+    // Reset button text
+    document.querySelector("button").innerText = "Create Report";
 
     loadReports();
 }
@@ -281,6 +298,8 @@ async function loadReports() {
             <div class="actions">
                 <button onclick="preview(${r.id})">Preview</button>
                 <button onclick="download(${r.id})">Download</button>
+                <button onclick="editReport(${r.id})">Edit</button>
+                <button onclick="deleteReport(${r.id})">Delete</button>
             </div>
         `;
 
@@ -301,8 +320,47 @@ async function preview(id) {
     `;
 }
 
+async function editReport(id) {
+    const reports = await fetch("/reports/").then(r => r.json());
+    const report = reports.find(r => r.id === id);
+
+    editingReportId = id;
+
+    if (editingReportId) {
+        document.getElementById("submitBtn").innerText = "Update Report";
+    } else {
+        document.getElementById("submitBtn").innerText = "Create Report";
+    }
+
+    const projectSelect = document.querySelector("#projects")?.tomselect;
+    const statusSelect = document.querySelector("#statuses")?.tomselect;
+    const fieldSelect = document.querySelector("#fields")?.tomselect;
+
+    if (projectSelect) projectSelect.setValue(report.project_keys || []);
+    if (statusSelect) statusSelect.setValue(report.statuses || []);
+    if (fieldSelect) fieldSelect.setValue(report.fields || []);
+
+    document.getElementById("name").value = report.name;
+    document.getElementById("start_date").value = report.start_date || "";
+    document.getElementById("end_date").value = report.end_date || "";
+    document.getElementById("range_days").value = report.range_days || "";
+
+    alert("Edit mode enabled. Modify and click Update Report to update.");
+}
+
 function download(id) {
     window.open(`/reports/${id}/download`, "_blank");
+}
+
+async function deleteReport(id) {
+    if (!confirm("Are you sure you want to delete this report?")) return;
+
+    await fetch(`/reports/${id}`, {
+        method: "DELETE"
+    });
+
+    alert("Report deleted");
+    loadReports();
 }
 
 function initDropdowns() {

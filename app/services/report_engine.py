@@ -107,9 +107,19 @@ def format_datetime(value):
         return value
 
 def extract_field(issue, field):
+
+    field_lower = field.lower()
+
+    # 🔥 Handle special Jira fields (robust)
+    if field_lower in ["key", "issuekey"]:
+        return issue.get("key")
+
+    if field_lower == "id":
+        return issue.get("id")
+
     value = issue["fields"].get(field)
 
-    # 🔥 Handle datetime fields
+    # Handle datetime
     if isinstance(value, str) and "T" in value:
         return format_datetime(value)
 

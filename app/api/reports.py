@@ -113,3 +113,42 @@ def preview_report(report_id: int):
         "jql": result["jql"],
         "total_issues": result["total_issues"]
     }
+
+@router.put("/{report_id}")
+def update_report(report_id: int, updated_data: dict):
+    db = SessionLocal()
+
+    report = db.query(ReportDefinition).filter(
+        ReportDefinition.id == report_id
+    ).first()
+
+    if not report:
+        return {"error": "Report not found"}
+
+    report.name = updated_data.get("name")
+    report.project_keys = updated_data.get("project_keys")
+    report.fields = updated_data.get("fields")
+    report.statuses = updated_data.get("statuses")
+    report.start_date = updated_data.get("start_date")
+    report.end_date = updated_data.get("end_date")
+    report.range_days = updated_data.get("range_days")
+
+    db.commit()
+
+    return {"message": "Report updated successfully"}
+
+@router.delete("/{report_id}")
+def delete_report(report_id: int):
+    db = SessionLocal()
+
+    report = db.query(ReportDefinition).filter(
+        ReportDefinition.id == report_id
+    ).first()
+
+    if not report:
+        return {"error": "Report not found"}
+
+    db.delete(report)
+    db.commit()
+
+    return {"message": "Report deleted successfully"}
