@@ -18,5 +18,7 @@ class ReportDefinition(Base):
     start_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
     range_days = Column(Integer, nullable=True)
+    email = Column(String, nullable=True)
+    cron = Column(String, nullable=True)
     jql_custom = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(IST))

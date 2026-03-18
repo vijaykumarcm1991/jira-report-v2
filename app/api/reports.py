@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 import os
 from app.services.report_engine import progress_store
 import uuid
+from app.services.scheduler import schedule_report
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -22,11 +23,18 @@ def create_report(report: dict):
         jql_custom=report.get("jql_custom"),
         start_date=report.get("start_date"),
         end_date=report.get("end_date"),
-        range_days=report.get("range_days")
+        range_days=report.get("range_days"),
+        email=report.get("email"),
+        cron=report.get("cron")
     )
 
     db.add(new_report)
     db.commit()
+    if new_report.cron:
+        # Example: {"hour": "*", "minute": "*/5"}
+        import json
+        cron_dict = json.loads(new_report.cron)
+        schedule_report(new_report.id, cron_dict)
     db.refresh(new_report)
 
     return new_report
@@ -138,6 +146,8 @@ def update_report(report_id: int, updated_data: dict):
     report.start_date = updated_data.get("start_date")
     report.end_date = updated_data.get("end_date")
     report.range_days = updated_data.get("range_days")
+    report.email = updated_data.get("email")
+    report.cron = updated_data.get("cron")
 
     db.commit()
 
