@@ -164,8 +164,17 @@
     <label>Email (for scheduled reports)</label>
     <input type="email" id="email" placeholder="Enter email">
 
-    <label>Cron (JSON format)</label>
-    <input type="text" id="cron" placeholder='{"hour":"*", "minute":"*/5"}'>
+    <label>Schedule</label>
+    <select id="schedule_type">
+        <option value="">-- Select --</option>
+        <option value="none">No Schedule</option>
+        <option value="one_time">One Time</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+    </select>
+
+    <div id="schedule_options"></div>
 
 </div>
 
@@ -238,6 +247,70 @@ async function createReport() {
         return;
     }
 
+    let cron = null;
+
+    const type = document.getElementById("schedule_type").value;
+
+    function getHourMinute(timeStr) {
+        const [hour, minute] = timeStr.split(":");
+        return { hour: parseInt(hour), minute: parseInt(minute) };
+    }
+
+    if (type === "one_time") {
+        const date = document.getElementById("one_date")?.value;
+        const time = document.getElementById("one_time")?.value;
+
+        if (date && time) {
+            const { hour, minute } = getHourMinute(time);
+            const d = new Date(date);
+
+            cron = JSON.stringify({
+                year: d.getFullYear(),
+                month: d.getMonth() + 1,
+                day: d.getDate(),
+                hour,
+                minute
+            });
+        }
+    }
+
+    if (type === "daily") {
+        const time = document.getElementById("daily_time")?.value;
+
+        if (time) {
+            const { hour, minute } = getHourMinute(time);
+            cron = JSON.stringify({ hour, minute });
+        }
+    }
+
+    if (type === "weekly") {
+        const day = document.getElementById("week_day")?.value;
+        const time = document.getElementById("week_time")?.value;
+
+        if (time) {
+            const { hour, minute } = getHourMinute(time);
+            cron = JSON.stringify({
+                day_of_week: day,
+                hour,
+                minute
+            });
+        }
+    }
+
+    if (type === "monthly") {
+        const date = document.getElementById("month_date")?.value;
+        const time = document.getElementById("month_time")?.value;
+
+        if (date && time) {
+            const { hour, minute } = getHourMinute(time);
+            cron = JSON.stringify({
+                day: parseInt(date),
+                hour,
+                minute
+            });
+        }
+    }
+
     const data = {
         name: document.getElementById("name").value,
         project_keys: getSelectedValues("projects"),
@@ -247,7 +320,7 @@ async function createReport() {
         end_date: document.getElementById("end_date").value || null,
         range_days: document.getElementById("range_days").value || null,
         email: document.getElementById("email").value || null,
-        cron: document.getElementById("cron").value || null
+        cron: cron
     };
 
     if (!data.name) {
@@ -366,6 +439,31 @@ async function editReport(id) {
     document.getElementById("range_days").value = report.range_days || "";
 
     alert("Edit mode enabled. Modify and click Update Report to update.");
+
+    if (report.cron) {
+        try {
+            const cronObj = JSON.parse(report.cron);
+
+            if (cronObj.year) {
+                document.getElementById("schedule_type").value = "one_time";
+            }
+            else if (cronObj.day_of_week) {
+                document.getElementById("schedule_type").value = "weekly";
+            }
+            else if (cronObj.day) {
+                document.getElementById("schedule_type").value = "monthly";
+            }
+            else {
+                document.getElementById("schedule_type").value = "daily";
+            }
+
+            document.getElementById("schedule_type")
+                .dispatchEvent(new Event("change"));
+
+        } catch (e) {
+            console.log("Invalid cron format");
+        }
+    }
 }
 
 async function download(id) {
@@ -441,6 +539,59 @@ async function initApp() {
     initDropdowns();
     loadReports();
 }
+
+document.getElementById("schedule_type").addEventListener("change", function () {
+
+    const type = this.value;
+    const container = document.getElementById("schedule_options");
+
+    container.innerHTML = "";
+
+    if (type === "one_time") {
+        container.innerHTML = `
+            <label>Date</label>
+            <input type="date" id="one_date">
+
+            <label>Time</label>
+            <input type="time" id="one_time">
+        `;
+    }
+
+    if (type === "daily") {
+        container.innerHTML = `
+            <label>Time</label>
+            <input type="time" id="daily_time">
+        `;
+    }
+
+    if (type === "weekly") {
+        container.innerHTML = `
+            <label>Day</label>
+            <select id="week_day">
+                <option value="mon">Monday</option>
+                <option value="tue">Tuesday</option>
+                <option value="wed">Wednesday</option>
+                <option value="thu">Thursday</option>
+                <option value="fri">Friday</option>
+                <option value="sat">Saturday</option>
+                <option value="sun">Sunday</option>
+            </select>
+
+            <label>Time</label>
+            <input type="time" id="week_time">
+        `;
+    }
+
+    if (type === "monthly") {
+        container.innerHTML = `
+            <label>Date (1-31)</label>
+            <input type="number" id="month_date" min="1" max="31">
+
+            <label>Time</label>
+            <input type="time" id="month_time">
+        `;
+    }
+});
 
 initApp();
 

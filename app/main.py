@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
-from app.services.scheduler import start_scheduler
+from app.services.scheduler import start_scheduler, load_existing_jobs
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -18,6 +18,7 @@ app.include_router(jira.router)
 @app.on_event("startup")
 def startup_event():
     start_scheduler()
+    load_existing_jobs()
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):

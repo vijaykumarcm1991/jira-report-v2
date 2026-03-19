@@ -57,10 +57,15 @@ def run_scheduled_report(report_id):
 
 
 def schedule_report(report_id, cron_expression):
+    # Remove existing job if exists
+    if scheduler.get_job(str(report_id)):
+        scheduler.remove_job(str(report_id))
+
     scheduler.add_job(
         run_scheduled_report,
         "cron",
         id=str(report_id),
+        replace_existing=True,
         **cron_expression,
         args=[report_id]
     )
@@ -68,3 +73,28 @@ def schedule_report(report_id, cron_expression):
 
 def start_scheduler():
     scheduler.start()
+
+def load_existing_jobs():
+    from app.db.database import SessionLocal
+    from app.models.report import ReportDefinition
+    import json
+
+    db = SessionLocal()
+
+    reports = db.query(ReportDefinition).all()
+
+    for report in reports:
+        if report.cron:
+            try:
+                cron_dict = json.loads(report.cron)
+            except Exception:
+                parts = report.cron.split()
+                cron_dict = {
+                    "minute": parts[0],
+                    "hour": parts[1],
+                    "day": parts[2],
+                    "month": parts[3],
+                    "day_of_week": parts[4],
+                }
+
+            schedule_report(report.id, cron_dict)

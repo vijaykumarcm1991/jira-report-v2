@@ -1,3 +1,5 @@
+import json
+
 from app.models import report
 from fastapi import APIRouter
 from app.db.database import SessionLocal
@@ -33,8 +35,28 @@ def create_report(report: dict):
     if new_report.cron:
         # Example: {"hour": "*", "minute": "*/5"}
         import json
-        cron_dict = json.loads(new_report.cron)
-        schedule_report(new_report.id, cron_dict)
+
+        if new_report.cron:
+            try:
+                # Try JSON format first
+                cron_dict = json.loads(new_report.cron)
+
+            except Exception:
+                # Fallback: parse cron string (e.g. */1 * * * *)
+                parts = new_report.cron.split()
+
+                if len(parts) == 5:
+                    cron_dict = {
+                        "minute": parts[0],
+                        "hour": parts[1],
+                        "day": parts[2],
+                        "month": parts[3],
+                        "day_of_week": parts[4],
+                    }
+                else:
+                    raise ValueError("Invalid cron format")
+
+            schedule_report(new_report.id, cron_dict)
     db.refresh(new_report)
 
     return new_report
@@ -148,6 +170,21 @@ def update_report(report_id: int, updated_data: dict):
     report.range_days = updated_data.get("range_days")
     report.email = updated_data.get("email")
     report.cron = updated_data.get("cron")
+
+    if report.cron:
+        try:
+            cron_dict = json.loads(report.cron)
+        except Exception:
+            parts = report.cron.split()
+            cron_dict = {
+                "minute": parts[0],
+                "hour": parts[1],
+                "day": parts[2],
+                "month": parts[3],
+                "day_of_week": parts[4],
+            }
+
+        schedule_report(report.id, cron_dict)
 
     db.commit()
 
