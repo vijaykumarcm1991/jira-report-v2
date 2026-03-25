@@ -23,3 +23,13 @@ class ReportDefinition(Base):
     cron = Column(String, nullable=True)
     jql_custom = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(IST))
+
+class ReportHistory(Base):
+    __tablename__ = "report_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer)
+    status = Column(String)   # Running / Success / Failed
+    total_records = Column(Integer)
+    file_path = Column(String)
+    created_at = Column(DateTime, default=lambda: datetime.now(IST))

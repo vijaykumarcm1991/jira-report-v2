@@ -3,13 +3,16 @@ import json
 from app.models import report
 from fastapi import APIRouter
 from app.db.database import SessionLocal
-from app.models.report import ReportDefinition
+from app.models.report import ReportDefinition, ReportHistory
 from app.services.report_engine import generate_report
 from fastapi.responses import FileResponse
 import os
 from app.services.report_engine import progress_store
 import uuid
 from app.services.scheduler import schedule_report
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from app.db.database import get_db
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -87,7 +90,7 @@ def run_report(report_id: int):
         "start_date": report.start_date,
         "end_date": report.end_date,
         "range_days": report.range_days
-    })
+    }, report_id=report.id)
 
     return result
 
@@ -114,7 +117,7 @@ def download_report(report_id: int, job_id: str = None):
         "start_date": report.start_date,
         "end_date": report.end_date,
         "range_days": report.range_days
-    }, job_id=job_id)
+    }, job_id=job_id, report_id=report.id)
 
     file_path = result["file"]
 
@@ -147,7 +150,7 @@ def preview_report(report_id: int):
         "start_date": report.start_date,
         "end_date": report.end_date,
         "range_days": report.range_days
-    })
+    }, report_id=report.id)
 
     return {
         "jql": result["jql"],
@@ -214,3 +217,16 @@ def delete_report(report_id: int):
 @router.get("/progress/{job_id}")
 def get_progress(job_id: str):
     return progress_store.get(job_id, {"fetched": 0, "total": 0})
+
+@router.get("/history")
+def get_history(db: Session = Depends(get_db)):
+    return db.query(ReportHistory).order_by(ReportHistory.id.desc()).all()
+
+@router.get("/history/{id}/download")
+def download_history(id: int, db: Session = Depends(get_db)):
+    history = db.query(ReportHistory).filter(ReportHistory.id == id).first()
+
+    if not history or not history.file_path:
+        return {"error": "File not found"}
+
+    return FileResponse(history.file_path, filename="report.csv")

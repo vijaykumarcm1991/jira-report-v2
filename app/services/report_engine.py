@@ -4,8 +4,8 @@ import csv
 import uuid
 from datetime import datetime, timedelta
 import pytz
-import os
-from datetime import datetime
+from app.models.report import ReportHistory
+from app.db.database import SessionLocal
 
 progress_store = {}
 
@@ -155,6 +155,7 @@ def extract_field(issue, field):
     return value
 
 def generate_csv(issues, fields):
+    
     filename = f"/tmp/report_{uuid.uuid4()}.csv"
 
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
@@ -171,7 +172,17 @@ def generate_csv(issues, fields):
     return filename
 
 
-def generate_report(report_config, job_id=None):
+def generate_report(report_config, job_id=None, report_id=None):
+
+    db = SessionLocal()
+
+    history = ReportHistory(
+        report_id=report_id,
+        status="Running"
+    )
+    db.add(history)
+    db.commit()
+    db.refresh(history)
 
     print("DEBUG CONFIG:", report_config)   # 👈 ADD HERE
 
@@ -189,12 +200,25 @@ def generate_report(report_config, job_id=None):
 
     fields = report_config.get("fields", [])
 
-    issues = fetch_issues(jql, fields, job_id)
+    try:
+        issues = fetch_issues(jql, fields, job_id)
+        file_path = generate_csv(issues, fields)
 
-    file_path = generate_csv(issues, fields)
+        history.status = "Success"
+        history.total_records = len(issues)
+        history.file_path = file_path
+        db.commit()
 
-    return {
-        "jql": jql,
-        "total_issues": len(issues),
-        "file": file_path
-    }
+        return {
+            "jql": jql,
+            "total_issues": len(issues),
+            "file": file_path
+        }
+
+    except Exception as e:
+        history.status = "Failed"
+        db.commit()
+        raise e
+
+    finally:
+        db.close()

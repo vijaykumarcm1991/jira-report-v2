@@ -113,6 +113,55 @@
         font-size: 14px;
     }
 
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+    .history-table th {
+        background: #2f3640;
+        color: white;
+        padding: 10px;
+        text-align: left;
+    }
+
+    .history-table td {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .history-table tr:hover {
+        background: #f1f2f6;
+    }
+
+    .status-success {
+        color: green;
+        font-weight: bold;
+    }
+
+    .status-failed {
+        color: red;
+        font-weight: bold;
+    }
+
+    .status-running {
+        color: orange;
+        font-weight: bold;
+    }
+
+    .download-btn {
+        background: #27ae60;
+        padding: 5px 10px;
+        color: white;
+        border-radius: 4px;
+        text-decoration: none;
+    }
+
+    .download-btn:hover {
+        background: #219150;
+    }
+
 </style>
 
 
@@ -200,6 +249,20 @@
 
 <div id="previewBox" class="preview-box" style="display:none;"></div>
 
+<h3 style="margin-top:30px;">📊 Report History</h3>
+<table class="history-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Report ID</th>
+            <th>Status</th>
+            <th>Total Records</th>
+            <th>Created</th>
+            <th>Download</th>
+        </tr>
+    </thead>
+    <tbody id="historyTable"></tbody>
+</table>
 
 </div>
 
@@ -560,10 +623,40 @@ function initDropdowns() {
     });
 }
 
+async function loadHistory() {
+    const res = await fetch("/reports/history");
+    const data = await res.json();
+
+    const table = document.getElementById("historyTable");
+    table.innerHTML = "";
+
+    data.forEach(h => {
+
+        const statusClass =
+            h.status === "Success" ? "status-success" :
+            h.status === "Failed" ? "status-failed" :
+            "status-running";
+
+        table.innerHTML += `
+        <tr>
+            <td>${h.id}</td>
+            <td>${h.report_id}</td>
+            <td class="${statusClass}">${h.status}</td>
+            <td>${h.total_records || "-"}</td>
+            <td>${new Date(h.created_at).toLocaleString()}</td>
+            <td>
+                ${h.file_path ? `<a class="download-btn" href="/reports/history/${h.id}/download">Download</a>` : "-"}
+            </td>
+        </tr>
+        `;
+    });
+}
+
 async function initApp() {
     await loadMetadata();
     initDropdowns();
     loadReports();
+    loadHistory();
 }
 
 document.getElementById("schedule_type").addEventListener("change", function () {
