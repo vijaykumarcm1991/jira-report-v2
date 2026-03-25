@@ -15,6 +15,7 @@ class ReportDefinition(Base):
     project_keys = Column(JSON)
     fields = Column(JSON)
     statuses = Column(JSON)
+    issuetypes = Column(JSON, nullable=True)
     start_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
     range_days = Column(Integer, nullable=True)

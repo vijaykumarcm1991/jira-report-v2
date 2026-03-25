@@ -18,7 +18,7 @@ JIRA_URL = os.getenv("JIRA_URL")
 JIRA_USERNAME = os.getenv("JIRA_USERNAME")
 JIRA_PASSWORD = os.getenv("JIRA_PASSWORD")
 
-def build_jql(projects=None, statuses=None, custom_jql=None,
+def build_jql(projects=None, statuses=None, issuetypes=None, custom_jql=None,
               start_date=None, end_date=None, range_days=None):
 
     if custom_jql:
@@ -35,6 +35,11 @@ def build_jql(projects=None, statuses=None, custom_jql=None,
     if statuses:
         status_str = ",".join([f'"{s}"' for s in statuses])
         jql_parts.append(f"status IN ({status_str})")
+
+    # Issue Type filter
+    if issuetypes:
+        type_str = ",".join([f'"{t}"' for t in issuetypes])
+        jql_parts.append(f"issuetype IN ({type_str})")
 
     # 🔥 Date Logic
 
@@ -173,6 +178,7 @@ def generate_report(report_config, job_id=None):
     jql = build_jql(
         projects=report_config.get("project_keys"),
         statuses=report_config.get("statuses"),
+        issuetypes=report_config.get("issuetypes"),
         custom_jql=report_config.get("jql_custom"),
         start_date=report_config.get("start_date"),
         end_date=report_config.get("end_date"),

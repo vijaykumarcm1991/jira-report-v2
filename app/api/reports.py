@@ -22,6 +22,7 @@ def create_report(report: dict):
         project_keys=report.get("project_keys", []),
         fields=report.get("fields", []),
         statuses=report.get("statuses", []),
+        issuetypes=report.get("issuetypes", []),
         jql_custom=report.get("jql_custom"),
         start_date=report.get("start_date"),
         end_date=report.get("end_date"),
@@ -81,6 +82,7 @@ def run_report(report_id: int):
         "project_keys": report.project_keys,
         "fields": report.fields,
         "statuses": report.statuses,
+        "issuetypes": report.issuetypes,
         "jql_custom": report.jql_custom,
         "start_date": report.start_date,
         "end_date": report.end_date,
@@ -107,6 +109,7 @@ def download_report(report_id: int, job_id: str = None):
         "project_keys": report.project_keys,
         "fields": report.fields,
         "statuses": report.statuses,
+        "issuetypes": report.issuetypes,
         "jql_custom": report.jql_custom,
         "start_date": report.start_date,
         "end_date": report.end_date,
@@ -139,6 +142,7 @@ def preview_report(report_id: int):
         "project_keys": report.project_keys,
         "fields": report.fields,
         "statuses": report.statuses,
+        "issuetypes": report.issuetypes,
         "jql_custom": report.jql_custom,
         "start_date": report.start_date,
         "end_date": report.end_date,
@@ -165,6 +169,7 @@ def update_report(report_id: int, updated_data: dict):
     report.project_keys = updated_data.get("project_keys")
     report.fields = updated_data.get("fields")
     report.statuses = updated_data.get("statuses")
+    report.issuetypes = updated_data.get("issuetypes")
     report.start_date = updated_data.get("start_date")
     report.end_date = updated_data.get("end_date")
     report.range_days = updated_data.get("range_days")

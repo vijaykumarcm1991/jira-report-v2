@@ -139,6 +139,11 @@
         <select id="statuses" multiple></select>
     </div>
 
+    <div>
+        <label>Issue Types</label>
+        <select id="issuetypes" multiple></select>
+    </div>
+
     <div class="full-width">
         <label>Fields</label>
         <select id="fields" multiple></select>
@@ -210,6 +215,7 @@ async function loadMetadata() {
     const fields = await fetch("/jira/fields").then(r => r.json());
     const projects = await fetch("/jira/projects").then(r => r.json());
     const statuses = await fetch("/jira/statuses").then(r => r.json());
+    const issuetypes = await fetch("/jira/issuetypes").then(r => r.json());
 
     fields.forEach(f => {
         let opt = document.createElement("option");
@@ -230,6 +236,16 @@ async function loadMetadata() {
         opt.value = s.name;
         opt.text = s.name;
         document.getElementById("statuses").appendChild(opt);
+    });
+
+    const typeSelect = document.getElementById("issuetypes");
+    typeSelect.innerHTML = "";
+
+    issuetypes.forEach(i => {
+        const opt = document.createElement("option");
+        opt.value = i.name;
+        opt.textContent = i.name;
+        typeSelect.appendChild(opt);
     });
 
     return true;
@@ -316,6 +332,7 @@ async function createReport() {
         project_keys: getSelectedValues("projects"),
         fields: getSelectedValues("fields"),
         statuses: getSelectedValues("statuses"),
+        issuetypes: getSelectedValues("issuetypes"),
         start_date: document.getElementById("start_date").value || null,
         end_date: document.getElementById("end_date").value || null,
         range_days: document.getElementById("range_days").value || null,
@@ -362,6 +379,7 @@ async function createReport() {
     document.querySelector("#projects").tomselect.clear();
     document.querySelector("#statuses").tomselect.clear();
     document.querySelector("#fields").tomselect.clear();
+    document.querySelector("#issuetypes").tomselect.clear();
 
     document.getElementById("name").value = "";
     document.getElementById("range_days").value = "";
@@ -428,10 +446,12 @@ async function editReport(id) {
     const projectSelect = document.querySelector("#projects")?.tomselect;
     const statusSelect = document.querySelector("#statuses")?.tomselect;
     const fieldSelect = document.querySelector("#fields")?.tomselect;
+    const issuetypeSelect = document.querySelector("#issuetypes")?.tomselect;
 
     if (projectSelect) projectSelect.setValue(report.project_keys || []);
     if (statusSelect) statusSelect.setValue(report.statuses || []);
     if (fieldSelect) fieldSelect.setValue(report.fields || []);
+    if (issuetypeSelect) issuetypeSelect.setValue(report.issuetypes || []);
 
     document.getElementById("name").value = report.name;
     document.getElementById("start_date").value = report.start_date || "";
@@ -531,6 +551,12 @@ function initDropdowns() {
         create: false,
         maxOptions: 10000,
         placeholder: "Search and select fields..."
+    });
+
+    new TomSelect("#issuetypes", {
+        plugins: ['remove_button'],
+        create: false,
+        placeholder: "Select issue types..."
     });
 }
 
