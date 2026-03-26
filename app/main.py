@@ -8,6 +8,7 @@ from fastapi import Request
 from app.services.scheduler import start_scheduler, load_existing_jobs
 from jinja2 import Environment, FileSystemLoader
 import os
+from app.services.scheduler import start_cleanup_scheduler
 
 app = FastAPI()
 # templates = Jinja2Templates(directory="templates")
@@ -28,6 +29,7 @@ app.include_router(jira.router)
 def startup_event():
     start_scheduler()
     load_existing_jobs()
+    start_cleanup_scheduler()
 
 # @app.get("/", response_class=HTMLResponse)
 # def home(request: Request):

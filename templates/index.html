@@ -264,11 +264,18 @@
     <tbody id="historyTable"></tbody>
 </table>
 
+<div style="margin-top:10px;">
+    <button onclick="prevPage()">⬅ Prev</button>
+    <button onclick="nextPage()">Next ➡</button>
+</div>
+
 </div>
 
 <script>
 
 let editingReportId = null;
+let historyPage = 0;
+const pageSize = 20;
 
 function generateJobId() {
     return 'job-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
@@ -624,7 +631,7 @@ function initDropdowns() {
 }
 
 async function loadHistory() {
-    const res = await fetch("/reports/history");
+    const res = await fetch(`/reports/history?skip=${historyPage * pageSize}&limit=${pageSize}`);
     const data = await res.json();
 
     const table = document.getElementById("historyTable");
@@ -646,10 +653,35 @@ async function loadHistory() {
             <td>${new Date(h.created_at).toLocaleString()}</td>
             <td>
                 ${h.file_path ? `<a class="download-btn" href="/reports/history/${h.id}/download">Download</a>` : "-"}
+                ${h.status === "Failed" ? `<button onclick="retry(${h.id})">Retry</button>` : ""}
             </td>
         </tr>
         `;
     });
+}
+
+async function retry(id) {
+    if (!confirm("Retry this report?")) return;
+
+    await fetch(`/reports/history/${id}/retry`, {
+        method: "POST"
+    });
+
+    alert("Retry started");
+
+    loadHistory();
+}
+
+function nextPage() {
+    historyPage++;
+    loadHistory();
+}
+
+function prevPage() {
+    if (historyPage > 0) {
+        historyPage--;
+        loadHistory();
+    }
 }
 
 async function initApp() {

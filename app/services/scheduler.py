@@ -5,6 +5,7 @@ from app.models.report import ReportDefinition
 import smtplib
 from email.message import EmailMessage
 import os
+from app.services.report_engine import cleanup_old_reports
 
 scheduler = BackgroundScheduler()
 
@@ -98,3 +99,15 @@ def load_existing_jobs():
                 }
 
             schedule_report(report.id, cron_dict)
+
+def start_cleanup_scheduler():
+    import threading
+    import time
+
+    def run():
+        while True:
+            cleanup_old_reports(days=7)
+            time.sleep(86400)  # run once daily
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()

@@ -6,6 +6,13 @@ from datetime import datetime, timedelta
 import pytz
 from app.models.report import ReportHistory
 from app.db.database import SessionLocal
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 progress_store = {}
 
@@ -156,7 +163,10 @@ def extract_field(issue, field):
 
 def generate_csv(issues, fields):
     
-    filename = f"/tmp/report_{uuid.uuid4()}.csv"
+    folder = "/app/reports" 
+    os.makedirs(folder, exist_ok=True)
+
+    filename = f"{folder}/report_{uuid.uuid4()}.csv"
 
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
@@ -174,6 +184,8 @@ def generate_csv(issues, fields):
 
 def generate_report(report_config, job_id=None, report_id=None):
 
+    logger.info(f"Starting report execution: report_id={report_id}")
+
     db = SessionLocal()
 
     history = ReportHistory(
@@ -183,8 +195,6 @@ def generate_report(report_config, job_id=None, report_id=None):
     db.add(history)
     db.commit()
     db.refresh(history)
-
-    print("DEBUG CONFIG:", report_config)   # 👈 ADD HERE
 
     jql = build_jql(
         projects=report_config.get("project_keys"),
@@ -196,7 +206,7 @@ def generate_report(report_config, job_id=None, report_id=None):
         range_days=report_config.get("range_days")
     )
 
-    print("DEBUG JQL:", jql)   # 👈 ADD HERE
+    logger.info(f"JQL Generated: {jql}")
 
     fields = report_config.get("fields", [])
 
@@ -209,6 +219,8 @@ def generate_report(report_config, job_id=None, report_id=None):
         history.file_path = file_path
         db.commit()
 
+        logger.info(f"Report Success: {report_id}, records={len(issues)}")
+
         return {
             "jql": jql,
             "total_issues": len(issues),
@@ -218,7 +230,29 @@ def generate_report(report_config, job_id=None, report_id=None):
     except Exception as e:
         history.status = "Failed"
         db.commit()
+        logger.error(f"Report Failed: {report_id}, error={str(e)}")
         raise e
-
+        
     finally:
         db.close()
+
+def cleanup_old_reports(days=7):
+    db = SessionLocal()
+
+    threshold = datetime.now(IST) - timedelta(days=days)
+
+    old_records = db.query(ReportHistory).filter(
+        ReportHistory.created_at < threshold
+    ).all()
+
+    for record in old_records:
+        if record.file_path and os.path.exists(record.file_path):
+            try:
+                os.remove(record.file_path)
+            except:
+                pass
+
+        db.delete(record)
+
+    db.commit()
+    db.close()
